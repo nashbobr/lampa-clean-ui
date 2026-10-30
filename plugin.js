@@ -8,9 +8,11 @@
     var SCALE = 1.15;
     var MAX_PHONE_WIDTH = 500;
     var SIDE = '16px';
+    var BLUR = '18px';
     var BANNED = ['metadata_chart', 'metadata_tags'];
 
     var BTN = 'body.stv .stv-full .full-start-new__buttons';
+    var BG = 'body.stv .stv-full .full-start__background';
 
     var css = '' +
         '.wrap__left{display:none !important;width:0 !important;}' +
@@ -19,6 +21,9 @@
         '.wrap__content{left:0 !important;margin-left:0 !important;width:100% !important;}' +
         '.lcu-hide{display:none !important;}' +
         BTN + ' > .button--options{display:none !important;}' +
+
+        BG + '{transition:opacity .5s,filter .5s,transform .5s !important;}' +
+        BG + '.dim{filter:blur(' + BLUR + ') !important;transform:scale(1.1);opacity:.45 !important;}' +
 
         '@media screen and (max-width:599px){' +
             'body.stv .items-line .items-line__head{padding-left:' + SIDE + ' !important;padding-right:' + SIDE + ' !important;}' +
@@ -105,11 +110,53 @@
         });
     }
 
+    function openBookmarks() {
+        var title = 'Закладки';
+        try { title = Lampa.Lang.translate('title_book') || title; } catch (e) {}
+        Lampa.Activity.push({url: '', title: title, component: 'bookmarks', page: 1});
+    }
+
+    function addBookmarksItem() {
+        var body = document.querySelector('.navigation-bar__body');
+        if (!body || body.querySelector('[data-action="bookmarks"]')) return;
+
+        var settings = body.querySelector('[data-action="settings"]');
+        if (!settings) return;
+
+        var item = settings.cloneNode(true);
+        item.setAttribute('data-action', 'bookmarks');
+
+        var label = item.querySelector('.navigation-bar__label');
+        if (label) label.textContent = 'Закладки';
+        else item.textContent = 'Закладки';
+
+        var icon = item.querySelector('.navigation-bar__icon');
+        if (icon) {
+            icon.innerHTML = '<svg viewBox="0 0 21 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 1.5H19C19.2761 1.5 19.5 1.72386 19.5 2V27.9618C19.5 28.3756 19.0261 28.6103 18.697 28.3595L12.6212 23.7303C11.3682 22.7757 9.63183 22.7757 8.37885 23.7303L2.30302 28.3595C1.9739 28.6103 1.5 28.3756 1.5 27.9618V2C1.5 1.72386 1.72386 1.5 2 1.5Z" stroke="currentColor" stroke-width="2.5"/></svg>';
+        }
+
+        try { item.style.order = window.getComputedStyle(settings).order; } catch (e) {}
+
+        item.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            openBookmarks();
+        });
+
+        if (settings.nextSibling) body.insertBefore(item, settings.nextSibling);
+        else body.appendChild(item);
+    }
+
+    function watchBar() {
+        addBookmarksItem();
+        setInterval(addBookmarksItem, 2000);
+    }
+
     function apply() {
         addStyle();
         startScale();
         listen();
         loadSnack();
+        watchBar();
     }
 
     if (window.appready) apply();

@@ -367,6 +367,22 @@
         }, true);
     }
 
+    function hookWatch() {
+        if (document.body.getAttribute('data-lcu-watch') === '1') return;
+        document.body.setAttribute('data-lcu-watch', '1');
+        document.addEventListener('click', function (ev) {
+            var b = ev.target && ev.target.closest ? ev.target.closest('.full-start-new__buttons > .stv-primary, .full-start-new__buttons > .button--play') : null;
+            if (!b || b.classList.contains('button--alc-auto')) return;
+            var card = b.closest('.full-start-new');
+            var online = card ? card.querySelector('[class*="view--online"]') : null;
+            if (!online || online === b) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            ev.stopImmediatePropagation();
+            try { $(online).trigger('hover:enter'); } catch (e) {}
+        }, true);
+    }
+
     function setIcon(action, svg) {
         var icon = document.querySelector('.navigation-bar__item[data-action="' + action + '"] .navigation-bar__icon');
         if (icon && icon.getAttribute('data-lcu') !== '1') {
@@ -419,6 +435,7 @@
         startScale();
         listen();
         hookNavigation();
+        hookWatch();
         loadSnack();
         watchBar();
     }

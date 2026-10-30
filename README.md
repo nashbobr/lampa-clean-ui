@@ -1,2 +1,14 @@
 # lampa-clean-ui
-Lampa plugin: hide sidebar menu and top header bar
+
+Плагин для Lampa: скрывает боковое меню и верхнюю панель (заголовок с иконками).
+Нижняя панель и строки на главной не затрагиваются.
+
+## Установка
+
+1. Settings -> Pages -> Source: Deploy from a branch -> main / root.
+2. Адрес плагина: `https://nashbobr.github.io/lampa-clean-ui/plugin.js`
+3. В Lampa: Настройки -> Расширения -> Добавить плагин -> вставить адрес.
+
+## Отключение
+
+Удалите плагин в Настройки -> Расширения.

@@ -11,8 +11,8 @@
     var BLUR = '18px';
     var BAR_BOTTOM = '18px';
     var PAGE_BOTTOM = '110px';
-    var HOME_LIKE = ['bookmarks', 'search'];
     var BANNED = ['metadata_chart', 'metadata_tags'];
+    var FAV_TABS = [['book', 'title_book', 'Закладки'], ['like', 'title_like', 'Нравится'], ['wath', 'title_wath', 'Позже'], ['look', 'title_look', 'Смотрю']];
 
     var BTN = 'body.stv .stv-full .full-start-new__buttons';
     var BG = 'body.stv .stv-full .full-start__background';
@@ -43,7 +43,31 @@
         NB + ' .navigation-bar__item .navigation-bar__label{display:block !important;font-size:11px !important;font-weight:500 !important;line-height:1.2 !important;white-space:nowrap;}' +
 
         'body.stv .activity--active .scroll:not(.scroll--horizontal) > .scroll__content{padding-bottom:' + PAGE_BOTTOM + ' !important;}' +
-        'body.stv .activity.lcu-page .scroll:not(.scroll--horizontal) > .scroll__content{padding-top:16px !important;}' +
+
+        '.lcu-sheet{position:fixed;left:0;top:0;right:0;bottom:0;z-index:2000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Roboto,Arial,sans-serif;}' +
+        '.lcu-sheet__dim{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}' +
+        '.lcu-sheet__box{position:absolute;left:0;right:0;bottom:0;top:calc(env(safe-area-inset-top, 0px) + 40px);display:flex;flex-direction:column;box-sizing:border-box;padding:8px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);border-radius:26px 26px 0 0;background:rgba(28,28,32,.94);-webkit-backdrop-filter:blur(40px) saturate(180%);backdrop-filter:blur(40px) saturate(180%);box-shadow:0 -10px 40px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12);}' +
+        '.lcu-sheet__grip{flex:none;width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.3);margin:4px auto 12px;}' +
+        '.lcu-sheet__head{flex:none;display:flex;align-items:center;gap:12px;margin-bottom:12px;}' +
+        '.lcu-title{flex:1;font-size:28px;font-weight:700;letter-spacing:-.02em;}' +
+        '.lcu-close{flex:none;font-size:17px;font-weight:600;color:#fff;padding:8px 4px;background:none;border:0;}' +
+        '.lcu-field{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:44px;box-sizing:border-box;padding:0 14px;border-radius:22px;background:rgba(118,118,128,.28);}' +
+        '.lcu-field svg{flex:none;width:20px;height:20px;opacity:.6;}' +
+        '.lcu-field input{flex:1;min-width:0;background:none;border:0;outline:0;color:#fff;font-size:17px;-webkit-appearance:none;appearance:none;}' +
+        '.lcu-field input::placeholder{color:rgba(235,235,245,.5);}' +
+        '.lcu-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}' +
+        '.lcu-row{display:flex;align-items:center;gap:14px;padding:8px 6px;border-radius:12px;}' +
+        '.lcu-row:active{background:rgba(255,255,255,.1);}' +
+        '.lcu-row img{flex:none;width:46px;height:69px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.08);}' +
+        '.lcu-row__t{font-size:17px;font-weight:600;line-height:1.25;}' +
+        '.lcu-row__s{font-size:13px;color:rgba(235,235,245,.6);margin-top:3px;}' +
+        '.lcu-msg{text-align:center;color:rgba(235,235,245,.55);padding:40px 0;font-size:15px;}' +
+        '.lcu-tabs{flex:none;display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;}' +
+        '.lcu-tab{flex:none;height:34px;padding:0 16px;border-radius:17px;background:rgba(118,118,128,.28);font-size:15px;font-weight:600;color:rgba(235,235,245,.8);border:0;}' +
+        '.lcu-tab.on{background:#fff;color:#000;}' +
+        '.lcu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 12px;}' +
+        '.lcu-card img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:12px;background:rgba(255,255,255,.08);}' +
+        '.lcu-card span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:12px;line-height:1.25;margin-top:6px;}' +
 
         '@media screen and (max-width:599px){' +
             'body.stv .items-line .items-line__head{padding-left:' + SIDE + ' !important;padding-right:' + SIDE + ' !important;}' +
@@ -128,24 +152,219 @@
                 }
             }
         });
-
-        Lampa.Listener.follow('activity', function () {
-            setTimeout(markActive, 150);
-            setTimeout(markPage, 150);
-            setTimeout(markPage, 600);
-        });
     }
 
-    function currentComponent() {
-        try { return Lampa.Activity.active().component; } catch (e) { return ''; }
+    // ---------- sheets (search and bookmarks) ----------
+    var sheetEl = null;
+
+    function el(tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text != null) n.textContent = text;
+        return n;
+    }
+
+    function tr(key, fallback) {
+        try {
+            var t = Lampa.Lang.translate(key);
+            if (t && t !== key) return t;
+        } catch (e) {}
+        return fallback;
+    }
+
+    function kindOf(m) {
+        return m.media_type === 'tv' || m.name || m.first_air_date || m.number_of_seasons ? 'tv' : 'movie';
+    }
+
+    function openCard(m) {
+        closeSheet();
+        Lampa.Activity.push({url: '', component: 'full', id: m.id, method: kindOf(m), card: m, source: 'tmdb'});
+    }
+
+    function poster(m, size) {
+        if (!m.poster_path) return '';
+        try { return Lampa.TMDB.image('t/p/' + size + m.poster_path); } catch (e) { return ''; }
+    }
+
+    function closeSheet() {
+        if (sheetEl && sheetEl.parentNode) sheetEl.parentNode.removeChild(sheetEl);
+        sheetEl = null;
+    }
+
+    function buildSheet() {
+        closeSheet();
+        var wrap = el('div', 'lcu-sheet');
+        var dim = el('div', 'lcu-sheet__dim');
+        var box = el('div', 'lcu-sheet__box');
+        dim.addEventListener('click', closeSheet);
+        box.appendChild(el('div', 'lcu-sheet__grip'));
+        wrap.appendChild(dim);
+        wrap.appendChild(box);
+        document.body.appendChild(wrap);
+        sheetEl = wrap;
+        return box;
+    }
+
+    function closeButton() {
+        var b = el('button', 'lcu-close', 'Готово');
+        b.addEventListener('click', closeSheet);
+        return b;
+    }
+
+    function tmdbSearch(q, ok, fail) {
+        try {
+            var lang = 'ru';
+            try { lang = Lampa.Storage.field('tmdb_lang') || Lampa.Storage.get('language', 'ru') || 'ru'; } catch (e) {}
+            var url = Lampa.TMDB.api('search/multi?query=' + encodeURIComponent(q) + '&include_adult=false&api_key=' + Lampa.TMDB.key() + '&language=' + lang);
+            new Lampa.Reguest().silent(url, ok, fail);
+        } catch (e) { fail(); }
+    }
+
+    function openSearch() {
+        var box = buildSheet();
+        var head = el('div', 'lcu-sheet__head');
+        var field = el('div', 'lcu-field');
+        field.innerHTML = ICON_SEARCH;
+        var input = document.createElement('input');
+        input.type = 'search';
+        input.placeholder = 'Фильмы и сериалы';
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('autocapitalize', 'off');
+        input.setAttribute('enterkeyhint', 'search');
+        ['keydown', 'keyup', 'keypress'].forEach(function (n) {
+            input.addEventListener(n, function (ev) { ev.stopPropagation(); });
+        });
+        field.appendChild(input);
+        head.appendChild(field);
+        head.appendChild(closeButton());
+        box.appendChild(head);
+
+        var scroll = el('div', 'lcu-scroll');
+        box.appendChild(scroll);
+
+        var token = 0, timer = 0;
+
+        function message(t) {
+            scroll.innerHTML = '';
+            scroll.appendChild(el('div', 'lcu-msg', t));
+        }
+
+        function render(list) {
+            scroll.innerHTML = '';
+            var items = (list || []).filter(function (m) { return m.media_type === 'movie' || m.media_type === 'tv'; });
+            if (!items.length) return message('Ничего не найдено');
+            items.forEach(function (m) {
+                var row = el('div', 'lcu-row');
+                var img = document.createElement('img');
+                img.alt = '';
+                var src = poster(m, 'w154');
+                if (src) img.src = src;
+                var info = el('div');
+                info.appendChild(el('div', 'lcu-row__t', m.title || m.name || ''));
+                var year = String(m.release_date || m.first_air_date || '').slice(0, 4);
+                var parts = [m.media_type === 'tv' ? 'Сериал' : 'Фильм'];
+                if (year) parts.push(year);
+                if (m.vote_average) parts.push('★ ' + (Math.round(m.vote_average * 10) / 10));
+                info.appendChild(el('div', 'lcu-row__s', parts.join(' · ')));
+                row.appendChild(img);
+                row.appendChild(info);
+                row.addEventListener('click', function () { openCard(m); });
+                scroll.appendChild(row);
+            });
+        }
+
+        function run() {
+            var q = input.value.trim();
+            var my = ++token;
+            if (q.length < 2) return message('Введите название');
+            tmdbSearch(q, function (j) {
+                if (my === token) render(j && j.results);
+            }, function () {
+                if (my === token) message('Не удалось загрузить результаты');
+            });
+        }
+
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(run, 350);
+        });
+
+        message('Введите название');
+        try { input.focus(); } catch (e) {}
+    }
+
+    function favList(type) {
+        try { return Lampa.Favorite.get({type: type}) || []; } catch (e) { return []; }
     }
 
     function openBookmarks() {
-        var title = 'Закладки';
-        try { title = Lampa.Lang.translate('title_book') || title; } catch (e) {}
-        Lampa.Activity.push({url: '', title: title, component: 'bookmarks', page: 1});
-        setTimeout(markActive, 300);
-        setTimeout(markPage, 300);
+        var box = buildSheet();
+        var head = el('div', 'lcu-sheet__head');
+        head.appendChild(el('div', 'lcu-title', tr('title_book', 'Закладки')));
+        head.appendChild(closeButton());
+        box.appendChild(head);
+
+        var tabs = el('div', 'lcu-tabs');
+        var scroll = el('div', 'lcu-scroll');
+        box.appendChild(tabs);
+        box.appendChild(scroll);
+
+        var lists = {}, first = null;
+        FAV_TABS.forEach(function (t) {
+            lists[t[0]] = favList(t[0]);
+            if (first === null && lists[t[0]].length) first = t[0];
+        });
+
+        function show(type) {
+            Array.prototype.forEach.call(tabs.children, function (b) {
+                b.classList.toggle('on', b.getAttribute('data-type') === type);
+            });
+            scroll.innerHTML = '';
+            var items = lists[type] || [];
+            if (!items.length) {
+                scroll.appendChild(el('div', 'lcu-msg', 'Здесь пока пусто'));
+                return;
+            }
+            var grid = el('div', 'lcu-grid');
+            items.forEach(function (m) {
+                var card = el('div', 'lcu-card');
+                var img = document.createElement('img');
+                img.alt = '';
+                var src = poster(m, 'w342');
+                if (src) img.src = src;
+                card.appendChild(img);
+                card.appendChild(el('span', '', m.title || m.name || ''));
+                card.addEventListener('click', function () { openCard(m); });
+                grid.appendChild(card);
+            });
+            scroll.appendChild(grid);
+        }
+
+        FAV_TABS.forEach(function (t) {
+            var n = lists[t[0]].length;
+            var b = el('button', 'lcu-tab', tr(t[1], t[2]) + (n ? ' ' + n : ''));
+            b.setAttribute('data-type', t[0]);
+            b.addEventListener('click', function () { show(t[0]); });
+            tabs.appendChild(b);
+        });
+
+        show(first || FAV_TABS[0][0]);
+    }
+
+    function hookNavigation() {
+        if (document.body.getAttribute('data-lcu-nav') === '1') return;
+        document.body.setAttribute('data-lcu-nav', '1');
+        document.addEventListener('click', function (ev) {
+            var t = ev.target && ev.target.closest ? ev.target.closest('.navigation-bar__item') : null;
+            if (!t) return;
+            var action = t.getAttribute('data-action');
+            if (action !== 'search' && action !== 'bookmarks') return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            ev.stopImmediatePropagation();
+            if (action === 'search') openSearch();
+            else openBookmarks();
+        }, true);
     }
 
     function setIcon(action, svg) {
@@ -154,21 +373,6 @@
             icon.innerHTML = svg;
             icon.setAttribute('data-lcu', '1');
         }
-    }
-
-    function markActive() {
-        var item = document.querySelector('.navigation-bar__item[data-action="bookmarks"]');
-        if (!item) return;
-        item.classList.toggle('lcu-active', currentComponent() === 'bookmarks');
-    }
-
-    function markPage() {
-        var comp = currentComponent();
-        var act = document.querySelector('.activity--active');
-        if (!act) return;
-        var like = HOME_LIKE.indexOf(comp) >= 0;
-        act.classList.toggle('lcu-page', like);
-        if (like) act.classList.add('stv-home');
     }
 
     function addBookmarksItem() {
@@ -194,11 +398,6 @@
 
         try { item.style.order = window.getComputedStyle(settings).order; } catch (e) {}
 
-        item.addEventListener('click', function (ev) {
-            ev.stopPropagation();
-            openBookmarks();
-        });
-
         if (settings.nextSibling) body.insertBefore(item, settings.nextSibling);
         else body.appendChild(item);
     }
@@ -208,8 +407,6 @@
         setIcon('settings', ICON_GEAR);
         setIcon('search', ICON_SEARCH);
         addBookmarksItem();
-        markActive();
-        markPage();
     }
 
     function watchBar() {
@@ -221,6 +418,7 @@
         addStyle();
         startScale();
         listen();
+        hookNavigation();
         loadSnack();
         watchBar();
     }
